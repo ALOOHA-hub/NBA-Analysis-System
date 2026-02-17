@@ -10,12 +10,10 @@ from constants import (
     CLASS_PLAYER, 
     CLASS_REFEREE, 
     CLASS_BALL, 
-    CLASS_GOALKEEPER,
     TRACKER_ACTIVATION_THRESHOLD,
     TRACKER_LOST_BUFFER
 )
 import pandas as pd
-
 class Tracker:
     def __init__(self):
         self.tracker = sv.ByteTrack(
@@ -23,49 +21,60 @@ class Tracker:
             lost_track_buffer=TRACKER_LOST_BUFFER
         )
 
-    def get_object_tracks(self, frames, read_from_stub=False, stub_path=None, detections=None):
-
+    def get_object_tracks(self, frames, detections):
         """
-        Get player tracking results for a sequence of frames with optional caching.
+        Get player tracking results for a sequence of frames.
 
         Args:
             frames (list): List of video frames to process.
-            read_from_stub (bool): Whether to attempt reading cached results.
-            stub_path (str): Path to the cache file.
+            detections (list): List of YOLO detections.
 
         Returns:
-            list: List of dictionaries containing player tracking information for each frame,
-                where each dictionary maps player IDs to their bounding box coordinates.
+            list: List of dictionaries containing player tracking information for each frame.
         """
-        tracks = read_stub(read_from_stub,stub_path)
-        if tracks is not None:
-            if len(tracks) == len(frames):
-                return tracks
-
-        tracks=[]
+        tracks = {
+            "players": [],
+            "referees": [],
+            "ball": []
+        }
 
         for frame_num, detection in enumerate(detections):
             cls_names = detection.names
-            cls_names_inv = {v:k for k,v in cls_names.items()}
+            cls_names_inv = {v: k for k, v in cls_names.items()}
 
-            # Covert to supervision Detection format
+            # Convert to supervision Detection format
             detection_supervision = sv.Detections.from_ultralytics(detection)
 
             # Track Objects
             detection_with_tracks = self.tracker.update_with_detections(detection_supervision)
 
-            tracks.append({})
+            tracks["players"].append({})
+            tracks["referees"].append({})
+            tracks["ball"].append({})
 
             for frame_detection in detection_with_tracks:
                 bbox = frame_detection[0].tolist()
                 cls_id = frame_detection[3]
                 track_id = frame_detection[4]
 
-                if cls_id == cls_names_inv['Player']:
-                    tracks[frame_num][track_id] = {"bbox":bbox}
-        
-        save_stub(stub_path,tracks)
+                if cls_id == cls_names_inv[CLASS_PLAYER]:
+                    tracks["players"][frame_num][track_id] = {"bbox": bbox}
+                
+                if cls_id == cls_names_inv[CLASS_REFEREE]:
+                    tracks["referees"][frame_num][track_id] = {"bbox": bbox}
+            
+            for frame_detection in detection_supervision:
+                bbox = frame_detection[0].tolist()
+                cls_id = frame_detection[3]
+
+                if cls_id == cls_names_inv[CLASS_BALL]:
+                    tracks["ball"][frame_num][1] = {"bbox": bbox}
+
+        # Interpolate Ball Positions
+        tracks["ball"] = self.interpolate_ball_positions(tracks["ball"])
+
         return tracks    
+        
     def interpolate_ball_positions(self, ball_positions):
         # 1. Convert to DataFrame with NaNs for missing frames
         processed_positions = []
@@ -120,6 +129,8 @@ class Tracker:
                 final_positions.append({1: {"bbox": row[:4].tolist()}})
 
         return final_positions 
+        
+    def draw_tracks(self, video_frames, tracks):
         output_video_frames = []
         for frame_num, frame in enumerate(video_frames):
             frame = frame.copy()

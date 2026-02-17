@@ -1,8 +1,7 @@
 # Tracker Class Labels
-CLASS_PLAYER = "player"
-CLASS_REFEREE = "referee"
-CLASS_BALL = "ball"
-CLASS_GOALKEEPER = "goalkeeper"
+CLASS_PLAYER = "Player"
+CLASS_REFEREE = "Ref"
+CLASS_BALL = "Ball"
 
 # Tracker Settings
 TRACKER_ACTIVATION_THRESHOLD = 0.1
