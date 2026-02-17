@@ -11,6 +11,8 @@ def main():
     conf_thres = cfg['settings']['confidence_threshold']
     iou_thres = cfg['settings']['iou_threshold']
 
+    model = YOLO(model_path)
+    results = model.track(video_path, save=True, project=save_path, name="inference", exist_ok=True, conf=conf_thres, iou=iou_thres,output=save_path)
 
 if __name__ == "__main__":
     main()
