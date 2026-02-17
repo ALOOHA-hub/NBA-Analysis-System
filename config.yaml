@@ -5,3 +5,5 @@ settings:
   confidence_threshold: 0.25
   iou_threshold: 0.7
   stub_path: stubs/track_stubs.pkl
+  team_stub_path: stubs/team_stubs.pkl
+  team_model_path: models/fashion-clip

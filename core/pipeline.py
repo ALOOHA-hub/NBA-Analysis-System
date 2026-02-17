@@ -4,6 +4,7 @@ from core.detection.detector import Detector
 from utils.config_loader import cfg
 from core.annotation.annotator import Annotator
 from utils.stub_manager import StubManager
+from core.team_assignement.team_assigner import TeamAssigner
 
 class Pipeline:
     def __init__(self, config):
@@ -12,6 +13,7 @@ class Pipeline:
         self.detector = Detector(config['model_path'])
         self.stub_manager = StubManager()
         self.annotation_manager = Annotator()
+        self.team_assigner = TeamAssigner(model_path=config.get('team_model_path'))
 
     
     def run(self):
@@ -36,6 +38,19 @@ class Pipeline:
 
             # Cache the tracks for next time
             self.stub_manager.save(tracks, stub_path)
+
+        # Step 3: Assign Teams
+        team_stub_path = self.config.get('team_stub_path', 'stubs/team_stubs.pkl')
+        team_assignments = self.team_assigner.get_player_teams_across_frames(frames, tracks['players'], stub_path=team_stub_path)
+
+        # Merge team info into tracks
+        for frame_num, player_track in enumerate(tracks['players']):
+            for player_id, track in player_track.items():
+                team = team_assignments[frame_num].get(player_id)
+                tracks['players'][frame_num][player_id]['team'] = team
+                # Default colors: Team 1 (Red-ish), Team 2 (Blue-ish)
+                # You can customize these in constants/annotation_consts.py later
+                tracks['players'][frame_num][player_id]['team_color'] = (0, 0, 255) if team == 1 else (255, 0, 0)
 
         #4. Draw annotation
 

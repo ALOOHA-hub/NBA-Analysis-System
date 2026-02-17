@@ -1,9 +1,9 @@
-# KMeans Parameters
-KMEANS_CLUSTERS = 2
-KMEANS_RANDOM_STATE = 0
-KMEANS_N_INIT_FIT = 1
-KMEANS_N_INIT_MODEL = 10
-
-# Team Identifiers
+# Team Assigner Settings
 TEAM_ID_1 = 1
 TEAM_ID_2 = 2
+TEAM_ASSIGNER_MODEL_NAME = "patrickjohncyh/fashion-clip"
+TEAM_ASSIGNER_TEAM_1_LABEL = "white shirt"
+TEAM_ASSIGNER_TEAM_2_LABEL = "dark blue shirt"
+
+# Frequency to reset player assignments to handle drift/lighting changes
+TEAM_ASSIGNER_RESET_FREQUENCY = 50
