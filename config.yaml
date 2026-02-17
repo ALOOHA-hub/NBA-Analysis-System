@@ -1,8 +1,7 @@
 settings:
   model_path: models/yolov8x.pt
-  input_video_path: data/input/08fd33_4.mp4
+  input_video_path: data/input/video_1.mp4
   output_path: data/output
   confidence_threshold: 0.25
   iou_threshold: 0.7
   stub_path: stubs/track_stubs.pkl
-  output_image_path: data/cropped_images
