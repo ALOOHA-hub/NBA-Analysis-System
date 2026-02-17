@@ -21,22 +21,24 @@ class Pipeline:
         stub_path = self.config['stub_path']
         tracks = self.stub_manager.load(stub_path)
         
+        # If tracks were loaded, verify they match the number of frames
+        if tracks is not None:
+            # Check length of one of the track lists (e.g., players)
+            if len(tracks.get("players", [])) != len(frames):
+                tracks = None
+
         if tracks is None:
-            print("Stub not found or failed to load. Starting detection (this may take a while)...")
             # Step 1: Detect objects in frames
             detections = self.detector.detect_frames(frames)
-            print("Detection completed. Starting tracking...")
 
             # Step 2: Track objects across frames
             tracks = self.tracker.get_object_tracks(frames, detections)
-            print("Tracking completed.")
 
             # Cache the tracks for next time
             self.stub_manager.save(tracks, stub_path)
-        else:
-            continue
 
         #4. Draw annotation
+
         output_frames = self.annotation_manager.draw_annotations(frames, tracks)
 
         #5. Save video
