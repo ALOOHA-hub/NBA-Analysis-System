@@ -44,9 +44,17 @@ class TeamAssigner:
     def load_model(self):
         """
         Loads the pre-trained vision model for jersey color classification.
+        Attempts local load first, falls back to default identifier if needed.
         """
-        self.model = CLIPModel.from_pretrained(self.model_path)
-        self.processor = CLIPProcessor.from_pretrained(self.model_path)
+        try:
+            print(f"[TEAM ASSIGNER] Attempting to load model from: {self.model_path}")
+            self.model = CLIPModel.from_pretrained(self.model_path)
+            self.processor = CLIPProcessor.from_pretrained(self.model_path)
+        except Exception as e:
+            print(f"[TEAM ASSIGNER] Warning: Failed to load from local path. Error: {e}")
+            print(f"[TEAM ASSIGNER] Falling back to default: {TEAM_ASSIGNER_MODEL_NAME}")
+            self.model = CLIPModel.from_pretrained(TEAM_ASSIGNER_MODEL_NAME)
+            self.processor = CLIPProcessor.from_pretrained(TEAM_ASSIGNER_MODEL_NAME)
 
     def get_player_color(self, frame, bbox):
         """
