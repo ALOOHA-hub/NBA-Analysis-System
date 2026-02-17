@@ -1,0 +1,9 @@
+# KMeans Parameters
+KMEANS_CLUSTERS = 2
+KMEANS_RANDOM_STATE = 0
+KMEANS_N_INIT_FIT = 1
+KMEANS_N_INIT_MODEL = 10
+
+# Team Identifiers
+TEAM_ID_1 = 1
+TEAM_ID_2 = 2

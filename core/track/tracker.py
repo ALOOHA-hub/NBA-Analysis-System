@@ -23,59 +23,51 @@ class Tracker:
             lost_track_buffer=TRACKER_LOST_BUFFER
         )
 
-    def get_object_tracks(self, detections):
-        
-        tracks = {
-            "players": [],
-            "referees": [],
-            "ball": [],
-        }
+    def get_object_tracks(self, frames, read_from_stub=False, stub_path=None, detections=None):
+
+        """
+        Get player tracking results for a sequence of frames with optional caching.
+
+        Args:
+            frames (list): List of video frames to process.
+            read_from_stub (bool): Whether to attempt reading cached results.
+            stub_path (str): Path to the cache file.
+
+        Returns:
+            list: List of dictionaries containing player tracking information for each frame,
+                where each dictionary maps player IDs to their bounding box coordinates.
+        """
+        tracks = read_stub(read_from_stub,stub_path)
+        if tracks is not None:
+            if len(tracks) == len(frames):
+                return tracks
+
+        tracks=[]
 
         for frame_num, detection in enumerate(detections):
             cls_names = detection.names
-            cls_names_inv = {v: k for k, v in cls_names.items()}
+            cls_names_inv = {v:k for k,v in cls_names.items()}
 
-            #Convert from the ultralytics format to the supervision format
+            # Covert to supervision Detection format
             detection_supervision = sv.Detections.from_ultralytics(detection)
 
-            #Convert from the ultralytics format to the supervision format
-            detection_supervision = sv.Detections.from_ultralytics(detection)
-
-            #Track objects
-            
-            #Track objects
+            # Track Objects
             detection_with_tracks = self.tracker.update_with_detections(detection_supervision)
-            
-            tracks["players"].append({})
-            tracks["referees"].append({})
-            tracks["ball"].append({})
-            
+
+            tracks.append({})
+
             for frame_detection in detection_with_tracks:
                 bbox = frame_detection[0].tolist()
                 cls_id = frame_detection[3]
                 track_id = frame_detection[4]
 
-                if cls_id == cls_names_inv[CLASS_PLAYER]:
-                    tracks["players"][frame_num][track_id] = {"bbox": bbox}
-
-                if cls_id == cls_names_inv[CLASS_REFEREE]:
-                    tracks["referees"][frame_num][track_id] = {"bbox": bbox}
-
-            for frame_detection in detection_supervision:
-                bbox = frame_detection[0].tolist()
-                cls_id = frame_detection[3]
-
-                if cls_id == cls_names_inv[CLASS_BALL]:
-                    tracks["ball"][frame_num][1] = {"bbox": bbox}
-
-        # Interpolate Ball Positions
-        tracks["ball"] = self.interpolate_ball_positions(tracks["ball"])
-
-        return tracks
-    
+                if cls_id == cls_names_inv['Player']:
+                    tracks[frame_num][track_id] = {"bbox":bbox}
+        
+        save_stub(stub_path,tracks)
+        return tracks    
     def interpolate_ball_positions(self, ball_positions):
         # 1. Convert to DataFrame with NaNs for missing frames
-        # Replace [] with [NaN, NaN, NaN, NaN] so pandas understands missing data
         processed_positions = []
         for x in ball_positions:
             bbox = x.get(1, {}).get('bbox', [])
@@ -86,8 +78,7 @@ class Tracker:
         
         df_ball_positions = pd.DataFrame(processed_positions, columns=['x1', 'y1', 'x2', 'y2'])
 
-        # 2. Filter False Positives (Sudden "Teleportation")
-        # If the ball moves > 100 pixels in 1 frame, it's likely a false detection (e.g., a shoe)
+        # 2. Filter False Positives (Sudden "Teleportation")        # If the ball moves > 100 pixels in 1 frame, it's likely a false detection (e.g., a shoe)
         df_ball_positions['center_x'] = (df_ball_positions['x1'] + df_ball_positions['x2']) / 2
         df_ball_positions['center_y'] = (df_ball_positions['y1'] + df_ball_positions['y2']) / 2
         
@@ -128,17 +119,35 @@ class Tracker:
             else:
                 final_positions.append({1: {"bbox": row[:4].tolist()}})
 
-        return final_positions
+        return final_positions 
+        output_video_frames = []
+        for frame_num, frame in enumerate(video_frames):
+            frame = frame.copy()
 
-    @staticmethod
-    def add_position_to_tracks(tracks):
-        from utils.bbox_utils import get_center_of_bbox, get_foot_position
-        for object, object_tracks in tracks.items():
-            for frame_num, track in enumerate(object_tracks):
-                for track_id, track_info in track.items():
-                    bbox = track_info['bbox']
-                    if object == CLASS_BALL:
-                        position = get_center_of_bbox(bbox)
-                    else:
-                        position = get_foot_position(bbox)
-                    tracks[object][frame_num][track_id]['position'] = position
+            player_dict = tracks["players"][frame_num]
+            ball_dict = tracks["ball"][frame_num]
+            referee_dict = tracks["referees"][frame_num]
+
+            # Draw Players
+            for track_id, player in player_dict.items():
+                color = (0, 0, 255) # Red for players
+                x1, y1, x2, y2 = player["bbox"]
+                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+                cv2.putText(frame, f"Player {track_id}", (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+            # Draw Referees
+            for track_id, referee in referee_dict.items():
+                color = (0, 255, 255) # Yellow for referees
+                x1, y1, x2, y2 = referee["bbox"]
+                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+                cv2.putText(frame, f"Ref {track_id}", (int(x1), int(y1) - 10), cv2.FONT_HERSHEY_SIMPLEX, 0.5, color, 2)
+
+            # Draw Ball
+            for track_id, ball in ball_dict.items():
+                color = (0, 255, 0) # Green for ball
+                x1, y1, x2, y2 = ball["bbox"]
+                cv2.rectangle(frame, (int(x1), int(y1)), (int(x2), int(y2)), color, 2)
+                
+            output_video_frames.append(frame)
+
+        return output_video_frames

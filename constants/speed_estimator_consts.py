@@ -1,0 +1,4 @@
+# Speed Estimator Settings
+SPEED_FRAME_WINDOW = 5
+SPEED_FRAME_RATE = 24
+METERS_PER_PIXEL = 0.02
